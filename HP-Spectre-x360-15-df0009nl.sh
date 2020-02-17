@@ -5,8 +5,8 @@ abs() {
     [[ $[ $@ ] -lt 0 ]] && echo "$[ ($@) * -1 ]" || echo "$[ $@ ]"
 }
 
-statePrev="undefined":
-state="normal"
+statePrev="stateprev":
+state="state"
 buffer=1000000
 oldset=2;
 #find touch id
@@ -17,12 +17,18 @@ echo "id touchscreen=$id"
 while :
 do
 #-------------brightness
+edp=$(xrandr |grep eDP)
+edp=${edp% connected*}
+
 Current=$(cat /sys/class/backlight/intel_backlight/device/intel_backlight/brightness)
 set=$(bc -l <<< "1 / (120000 / $Current)")
 if [ $oldset = $set ]; then 
     echo "">/dev/null
 else
-    xrandr --output eDP-1 --brightness $set
+
+     xrandr --output $edp --brightness $set
+#    xrandr --output eDP-1 --brightness $set
+#    xrandr --output eDP-1-1 --brightness $set    
     oldset=$set
 fi
 #-------------orientation
@@ -31,42 +37,49 @@ angleY=$(cat /sys/bus/iio/devices/iio:device*/in_incli_y_raw)
 ABSangleX=$(abs $angleX)
 ABSangleY=$(abs $angleY)
 
+
+
+
 #echo angleX $angleX
 #echo angleY $angleY
 
-#tmpval=$(bc -l <<< "$ABSangleX + $buffer")
 tmpval=$((($ABSangleX + $buffer)))
 
 if [ $ABSangleY -gt $tmpval ]; then
-    #echo "$ABSangleY > $tmpval" 
     if [ $angleY -gt 0 ]; then
-        state="left"
-        xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
-        xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
-        xinput set-prop $id --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
+        if [  $state != "left" ]; then
+            state="left"
+            xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
+            xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
+            xinput set-prop $id --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
+        fi
     else
-        state="right"
-        xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
-        xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
-        xinput set-prop $id --type=float "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1    
+        if [  $state != "right" ]; then
+            state="right"
+            xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
+            xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
+            xinput set-prop $id --type=float "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1    
+        fi
     fi
 fi
 
-#tmpval=$(bc -l <<< "$ABSangleX - $buffer")
 tmpval=$((($ABSangleX - $buffer)))
 if [  $ABSangleY -lt $tmpval ]; then
-    #echo "$ABSangleY < $tmpval" 
     if [ $angleX -gt 0 ]; then
-        #echo "$ABSangleY > 0" 
-        state="normal"    
-        xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0 
-        xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0 
-        xinput set-prop $id --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0     
+        if [  $state != "normal" ]; then
+            #echo "$ABSangleY > 0" 
+            state="normal"    
+            xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0 
+            xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0 
+            xinput set-prop $id --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0     
+        fi
     else
-        state="inverted"
-        xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1
-        xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1
-        xinput set-prop $id --type=float "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1
+        if [  $state != "inverted" ]; then
+            state="inverted"
+            xinput set-prop "ELAN2514:00 04F3:2975 Pen (0)" --type=float "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1
+            xinput set-prop "SYNA327F:00 06CB:CD4F Touchpad" --type=float "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1
+            xinput set-prop $id --type=float "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1
+        fi
     fi
 fi
 
@@ -74,12 +87,13 @@ fi
 if [ $state = $statePrev ]; then 
         echo "">/dev/null
 else
+    echo "new state " $state;
     statePrev=$state
     xrandr -o $state
     xrandr  --output eDP-1-1 --rotate $state
 fi
 
-sleep 0.5
+sleep 0.1
 done
 
 
